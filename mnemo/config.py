@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 from typing import Literal
 
+from dotenv import load_dotenv
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -81,6 +82,7 @@ class Settings(BaseSettings):
 
     def resolved_llm(self) -> tuple[str, str, str]:
         """Return ``(base_url, api_key, model)`` after applying provider presets."""
+        load_dotenv()  # provider keys like GROQ_API_KEY are read from os.environ
         preset = PROVIDER_PRESETS.get(self.llm_provider, {})
         base_url = self.llm_base_url or preset.get("base_url")
         if not base_url:
