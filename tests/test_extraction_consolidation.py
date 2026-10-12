@@ -104,3 +104,35 @@ def test_plan_skips_llm_when_store_is_empty(fake_llm):
     ops = plan_operations(fake_llm, _facts("a", "b"), existing=[])
     assert [o.op for o in ops] == [EventType.ADD, EventType.ADD]
     assert fake_llm.calls == []
+
+
+def test_reasoning_effort_defaults_per_model_family():
+    from mnemo import Settings
+
+    s = Settings(_env_file=None)
+    assert s.reasoning_effort("openai/gpt-oss-120b") == "low"
+    assert s.reasoning_effort("qwen/qwen3.8-27b") == "none"
+    assert s.reasoning_effort("gpt-4.1-mini") is None
+    assert Settings(_env_file=None, llm_reasoning_effort="").reasoning_effort("gpt-oss") is None
+    assert Settings(_env_file=None, llm_reasoning_effort="high").reasoning_effort("x") == "high"
+
+
+def test_facts_only_in_rejected_or_delete_ops_are_still_added():
+    facts = _facts("hallucinated update", "only deleted", "unverified none")
+    ops = parse_operations(
+        {
+            "operations": [
+                {"op": "UPDATE", "fact": 0, "id": "42", "text": "x"},  # unknown id -> rejected
+                {"op": "DELETE", "fact": 1, "id": "0"},  # delete keeps nothing of fact 1
+                {"op": "NONE", "fact": 2, "id": "7"},  # claims a duplicate that doesn't exist
+            ]
+        },
+        facts,
+        {"0": "mem-0"},
+    )
+    assert [(o.op, o.fact.content if o.fact else o.memory_id) for o in ops] == [
+        (EventType.DELETE, "mem-0"),
+        (EventType.ADD, "hallucinated update"),
+        (EventType.ADD, "only deleted"),
+        (EventType.ADD, "unverified none"),
+    ]

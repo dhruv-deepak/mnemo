@@ -78,18 +78,19 @@ def parse_operations(
             continue
         index = _as_index(raw.get("fact"), len(facts))
         fact = facts[index] if index is not None else None
-        if index is not None:
-            covered.add(index)
         memory_id = aliases.get(str(raw.get("id"))) if raw.get("id") is not None else None
         reason = raw.get("reason")
+        stores_fact = False  # does an accepted operation keep this fact's information?
 
         if op is EventType.ADD and index is not None and fact is not None:
+            stores_fact = True
             if index not in added:
                 added.add(index)
                 operations.append(Operation(op, fact=fact, reason=reason))
         elif op is EventType.UPDATE and memory_id and memory_id not in touched:
             text = str(raw.get("text") or (fact.content if fact else "")).strip()
             if text:
+                stores_fact = True
                 touched.add(memory_id)
                 operations.append(
                     Operation(op, fact=fact, memory_id=memory_id, text=text, reason=reason)
@@ -97,10 +98,15 @@ def parse_operations(
         elif op is EventType.DELETE and memory_id and memory_id not in touched:
             touched.add(memory_id)
             operations.append(Operation(op, memory_id=memory_id, reason=reason))
-        elif op is EventType.NONE and fact is not None:
+        elif op is EventType.NONE and fact is not None and memory_id:
+            stores_fact = True
             operations.append(Operation(op, fact=fact, memory_id=memory_id, reason=reason))
 
-    # Never silently drop information: any fact the model forgot to mention is added.
+        if stores_fact and index is not None:
+            covered.add(index)
+
+    # Never silently drop information: a fact not kept by any accepted operation (the model
+    # forgot it, used a hallucinated id, or only mentioned it in a DELETE) is added.
     for index, fact in enumerate(facts):
         if index not in covered:
             log.debug("Fact %d was not covered by the LLM's plan; adding it", index)

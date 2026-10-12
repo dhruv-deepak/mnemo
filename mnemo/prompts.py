@@ -7,11 +7,16 @@ Read the conversation and extract the facts worth remembering for future convers
 Rules:
 - Each fact must be atomic (one piece of information) and self-contained: it must make sense
   on its own months later, without the conversation. Use people's names, never "he", "she", "I".
-- If a speaker has no name, refer to them as "User" (role user) or skip them (role assistant).
+- If a speaker has no name, use the name the background memories give for them; if there is
+  none, write "User" (role user). Skip facts about the assistant itself.
 - Only extract facts the speakers state or clearly imply about themselves, other people, or
   the world. Do not extract the assistant's suggestions unless the user accepts them.
-- Convert relative times ("yesterday", "last week", "next month") into absolute dates using the
-  conversation date. Always keep dates in the fact, e.g. "Priya ran a 10k race on 3 May 2025".
+- Anchor relative times to the conversation date, keeping their original precision:
+  "yesterday" -> "on 11 October 2026"; "last week" -> "in the week before 12 October 2026";
+  "last year" -> "in 2025". Always keep times in the fact, e.g. "Priya ran a 10k race on
+  3 May 2025".
+- Background memories are context only: use them to resolve names and pronouns, and do not
+  re-extract facts they already state unless the conversation changes them.
 - Skip greetings, small talk, and anything with no future value.
 - Classify each fact:
     "semantic"   - lasting facts: identity, relationships, preferences, plans, skills, possessions
@@ -30,6 +35,9 @@ Return {"facts": []} if there is nothing worth remembering."""
 
 EXTRACTION_USER = """Conversation date: {date}
 
+Background memories (already stored):
+{background}
+
 Conversation:
 {conversation}"""
 
@@ -43,14 +51,21 @@ duplicates:
 - ADD:    the fact is new information. Give "fact".
 - UPDATE: the fact refines, corrects or adds detail to an existing memory about the same thing.
           Give "id" of the existing memory, "fact", and "text": the merged memory to store.
-          Keep dates. Prefer the newer information when they conflict.
-- DELETE: the fact proves an existing memory is no longer true (e.g. "moved from Delhi to Pune"
-          invalidates "lives in Delhi"). Give "id". If the new fact should also be stored,
-          emit a separate ADD for it.
+          The text must keep every detail of both that is still true, including dates.
+          Prefer the newer information when they conflict.
+- DELETE: the fact proves an existing memory is entirely no longer true (e.g. "moved from
+          Delhi to Pune" invalidates "lives in Delhi"). Give "id". If the new fact should also
+          be stored, emit a separate ADD for it. If only part of a memory is outdated, UPDATE
+          it instead, keeping the parts that are still true ("CS student in Delhi" + moved to
+          Pune -> "CS student, previously lived in Delhi").
 - NONE:   the fact is already fully captured by an existing memory. Give "fact" and "id".
 
-Episodic memories describe past events; a later event does not make an earlier one false, so
-ADD new events rather than UPDATE or DELETE old ones, unless the new fact corrects the old one.
+Check every EXISTING memory against the new facts. A new event can make a lasting fact
+outdated: "moved to Pune last week" means "lives in Delhi" must be updated or deleted, even
+though the move itself is ADDed. One new fact may need several operations.
+
+Past events stay true: a later event does not make an earlier one false, so never UPDATE or
+DELETE an episodic memory because of a newer event, only to correct it.
 
 Every new fact must appear in at least one operation. Only use ids from the EXISTING list.
 

@@ -118,13 +118,13 @@ class Memory:
         metadata: dict[str, Any] | None,
         when: datetime,
     ) -> list[MemoryEvent]:
-        facts = extract_facts(self.llm, messages, when)
+        filters = Filters(user_id=user_id, agent_id=agent_id)
+        facts = extract_facts(self.llm, messages, when, self._background(messages, filters))
         if not facts:
             return []
         embeddings = self.embedder.embed([f.content for f in facts])
         embedding_of = {id(f): e for f, e in zip(facts, embeddings, strict=True)}
 
-        filters = Filters(user_id=user_id, agent_id=agent_id)
         candidate_ids: dict[str, None] = {}
         for embedding in embeddings:
             for memory_id, _ in self.store.vector_search(
@@ -141,6 +141,19 @@ class Memory:
             if event is not None:
                 events.append(event)
         return events
+
+    def _background(self, messages: list[Message], filters: Filters) -> list[str]:
+        """Stored memories most related to the conversation, given to the extractor as context.
+
+        Uses the store directly rather than ``search`` so that this internal lookup does not
+        inflate the access statistics that users see."""
+        if self.settings.extraction_background <= 0:
+            return []
+        text = " ".join(m["content"] for m in messages)[-2000:]
+        hits = self.store.vector_search(
+            filters, self.embedder.embed_query(text), self.settings.extraction_background
+        )
+        return [m.content for m in self.store.get_many([i for i, _ in hits])]
 
     def _apply(
         self,

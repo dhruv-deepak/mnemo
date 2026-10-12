@@ -68,8 +68,14 @@ def parse_facts(payload: dict[str, Any]) -> list[ExtractedFact]:
     return facts
 
 
-def extract_facts(llm: LLM, messages: list[Message], when: datetime) -> list[ExtractedFact]:
+def extract_facts(
+    llm: LLM, messages: list[Message], when: datetime, background: list[str] | None = None
+) -> list[ExtractedFact]:
+    """``background`` holds already-stored memories related to the conversation. They let the
+    model resolve who "I" is and avoid re-extracting known facts."""
     user = EXTRACTION_USER.format(
-        date=when.strftime("%d %B %Y, %H:%M"), conversation=format_conversation(messages)
+        date=when.strftime("%d %B %Y, %H:%M"),
+        background="\n".join(f"- {b}" for b in background) if background else "(none)",
+        conversation=format_conversation(messages),
     )
     return parse_facts(llm.complete_json(EXTRACTION_SYSTEM, user))

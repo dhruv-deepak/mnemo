@@ -187,3 +187,17 @@ def test_agent_uses_memories_and_learns(memory, fake_llm):
     assert turn.memories[0].memory.content == "Priya is vegetarian"
     assert turn.write is not None and turn.write.events[0].event is EventType.ADD
     assert memory.count("u1") == 2
+
+
+def test_extraction_sees_related_memories_as_background(memory, fake_llm):
+    memory.add("Aisha is a CS student", "u1", infer=False)
+    memory.add("The weather API is down", "u2", infer=False)  # other user: must not leak
+    memory.add("I moved to Bangalore", "u1")
+    prompt = fake_llm.calls[-1][1]
+    assert "- Aisha is a CS student" in prompt
+    assert "weather" not in prompt
+
+
+def test_first_extraction_has_no_background(memory, fake_llm):
+    memory.add("hello", "u1")
+    assert "Background memories (already stored):\n(none)" in fake_llm.calls[0][1]
