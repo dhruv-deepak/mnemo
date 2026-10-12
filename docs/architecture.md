@@ -133,6 +133,10 @@ structured tasks where long deliberation adds latency but little accuracy.
 
 ## Known limitations
 
+- Extraction is the least controllable step. In repeated live runs of the same message,
+  the extractor occasionally omits a detail entirely (for example, keeping "moved to
+  Bangalore" but not "for an internship"). Consolidation can't recover information that was
+  never extracted. Evaluating extraction recall on its own is the next step.
 - Consolidation only compares new facts with the top-5 most similar memories, so a
   contradiction phrased very differently can be missed.
 - Memories are never consolidated in the background. Episodic memories accumulate, and a
