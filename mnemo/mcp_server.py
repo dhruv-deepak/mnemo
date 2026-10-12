@@ -22,7 +22,7 @@ INSTRUCTIONS = """This server is your long-term memory about the user.
 def build_server(memory: Memory | None = None, default_user: str | None = None) -> MCPServer:
     server = MCPServer("mnemo", instructions=INSTRUCTIONS)
     state: dict[str, Memory] = {}
-    user_default = default_user or os.getenv("MNEMO_DEFAULT_USER", "default")
+    user_default: str = default_user or os.environ.get("MNEMO_DEFAULT_USER", "default")
 
     def mem() -> Memory:
         # Created on first use so the server starts instantly even if the model must download.

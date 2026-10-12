@@ -99,7 +99,8 @@ def _row_to_item(row: tuple[Any, ...]) -> MemoryItem:
 
 
 def _where(filters: Filters) -> tuple[str, list[Any]]:
-    clauses, params = ["user_id = %s"], [filters.user_id]
+    clauses = ["user_id = %s"]
+    params: list[Any] = [filters.user_id]
     if filters.agent_id is not None:
         clauses.append("agent_id = %s")
         params.append(filters.agent_id)
@@ -194,7 +195,7 @@ class PostgresStore(MemoryStore):
         by_id = {r[0]: _row_to_item(r) for r in rows}
         return [by_id[i] for i in memory_ids if i in by_id]
 
-    def list(self, filters: Filters, limit: int = 100, offset: int = 0) -> list[MemoryItem]:
+    def list_items(self, filters: Filters, limit: int = 100, offset: int = 0) -> list[MemoryItem]:
         where, params = _where(filters)
         rows = self._fetch(
             f"SELECT {_COLUMNS} FROM memories WHERE {where} "

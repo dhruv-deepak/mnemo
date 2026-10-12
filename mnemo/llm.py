@@ -44,7 +44,7 @@ def parse_json_object(text: str) -> dict[str, Any]:
 
 
 def _make_client(base_url: str, api_key: str, settings: Settings) -> Any:
-    kwargs = {
+    kwargs: dict[str, Any] = {
         "base_url": base_url,
         "api_key": api_key or "missing-key",
         "max_retries": settings.llm_max_retries,  # SDK retries 429/5xx with backoff

@@ -289,7 +289,7 @@ class Memory:
         filters = Filters(
             user_id=user_id, agent_id=agent_id, types=[MemoryType(t).value for t in types or []]
         )
-        return self.store.list(filters, limit=limit, offset=offset)
+        return self.store.list_items(filters, limit=limit, offset=offset)
 
     def count(self, user_id: str, *, agent_id: str | None = None) -> int:
         return self.store.count(Filters(user_id=user_id, agent_id=agent_id))

@@ -44,7 +44,7 @@ def test_filters_by_agent_and_type(store, embedder, user_id):
     _add(store, embedder, user_id, "fact a", agent_id="coach", type=MemoryType.SEMANTIC)
     _add(store, embedder, user_id, "fact b", agent_id="tutor", type=MemoryType.PROCEDURAL)
     assert store.count(Filters(user_id, agent_id="coach")) == 1
-    procedural = store.list(Filters(user_id, types=["procedural"]))
+    procedural = store.list_items(Filters(user_id, types=["procedural"]))
     assert [m.content for m in procedural] == ["fact b"]
 
 

@@ -136,7 +136,8 @@ def create_app(memory: Memory | None = None, settings: Settings | None = None) -
             )
 
     def get_memory(request: Request) -> Memory:
-        return request.app.state.memory  # type: ignore[no-any-return]
+        memory: Memory = request.app.state.memory
+        return memory
 
     guarded = [Depends(rate_limit)]
 

@@ -280,10 +280,10 @@ tests/                 # 65+ tests, deterministic (scripted LLM, hash embeddings
 ```bash
 pip install -e ".[dev]"
 pytest                       # runs fully offline: no API keys or model downloads
-ruff check . && ruff format --check .
+ruff check . && ruff format --check . && mypy
 ```
 
-CI runs lint, tests on Python 3.11 and 3.12 against both SQLite and a real Postgres +
+CI runs lint, type checking (mypy), tests on Python 3.11 and 3.12 against both SQLite and a real Postgres +
 pgvector service, and builds and smoke-tests the Docker image.
 
 ## Roadmap

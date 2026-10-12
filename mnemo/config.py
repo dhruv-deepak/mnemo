@@ -6,7 +6,6 @@ import os
 from typing import Literal
 
 from dotenv import load_dotenv
-from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # OpenAI-compatible endpoints. Every provider here speaks the same chat-completions protocol,
@@ -63,9 +62,7 @@ class Settings(BaseSettings):
 
     # Write path
     extraction_background: int = 6  # related memories shown to the extractor; 0 disables
-    consolidation_candidates: int = Field(
-        5, description="Similar memories shown to the LLM per new fact"
-    )
+    consolidation_candidates: int = 5  # similar memories shown to the LLM per new fact
 
     # Retrieval
     candidate_pool: int = 30
@@ -91,7 +88,7 @@ class Settings(BaseSettings):
         base_url = self.llm_base_url or preset.get("base_url")
         if not base_url:
             raise ValueError("MNEMO_LLM_BASE_URL is required when MNEMO_LLM_PROVIDER=custom")
-        api_key = self.llm_api_key or os.getenv(preset.get("key_env", ""), "")
+        api_key: str = self.llm_api_key or os.environ.get(preset.get("key_env", ""), "")
         if not api_key and self.llm_provider == "ollama":
             api_key = "ollama"  # Ollama ignores the key but the client requires one
         model = self.llm_model or preset.get("model")

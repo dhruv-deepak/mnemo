@@ -230,7 +230,7 @@ class SQLiteStore(MemoryStore):
         by_id = {row["id"]: _row_to_item(row) for row in rows}
         return [by_id[i] for i in memory_ids if i in by_id]
 
-    def list(self, filters: Filters, limit: int = 100, offset: int = 0) -> list[MemoryItem]:
+    def list_items(self, filters: Filters, limit: int = 100, offset: int = 0) -> list[MemoryItem]:
         where, params = _where(filters)
         with self._lock:
             rows = self._conn.execute(
@@ -280,6 +280,7 @@ class SQLiteStore(MemoryStore):
         rows = self._conn.execute(
             "SELECT id, agent_id, type, embedding FROM memories WHERE user_id = ?", (user_id,)
         ).fetchall()
+        matrix: np.ndarray
         if rows:
             matrix = np.frombuffer(b"".join(r["embedding"] for r in rows), dtype=np.float32)
             matrix = matrix.reshape(len(rows), -1)
