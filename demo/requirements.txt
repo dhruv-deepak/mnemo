@@ -1,0 +1,8 @@
+# Used by Streamlit Community Cloud. The app imports mnemo from the repo directly.
+streamlit>=1.35
+openai>=1.40
+numpy>=1.26
+pydantic>=2.6
+pydantic-settings>=2.2
+fastembed>=0.4
+python-dotenv>=1.0
