@@ -64,6 +64,7 @@ class MemoryEvent(BaseModel):
 
     id: str = Field(default_factory=new_id)
     memory_id: str
+    user_id: str | None = None
     event: EventType
     old_content: str | None = None
     new_content: str | None = None

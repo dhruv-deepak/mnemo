@@ -36,7 +36,7 @@ server = [
     "uvicorn[standard]>=0.29",
     "prometheus-client>=0.20",
 ]
-postgres = ["psycopg[binary]>=3.1", "pgvector>=0.3"]
+postgres = ["psycopg[binary,pool]>=3.1", "pgvector>=0.3"]
 mcp = ["mcp>=2.0"]
 demo = ["streamlit>=1.35"]
 bench = ["tiktoken>=0.7"]
