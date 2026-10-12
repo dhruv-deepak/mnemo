@@ -475,6 +475,12 @@ def main(argv: list[str] | None = None) -> None:
     run.add_argument("--ingest-model")
     run.add_argument("--answer-model")
     run.add_argument("--judge-model")
+    run.add_argument(
+        "--max-wait-hours",
+        type=float,
+        default=36,
+        help="keep waiting out provider rate limits for up to this long",
+    )
     run.set_defaults(func=cmd_run)
 
     report = sub.add_parser("report", help="summarise a run as a markdown table")
@@ -484,20 +490,40 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
     from openai import APIConnectionError, InternalServerError, RateLimitError
 
-    for attempt in range(1, 11):
+    network_failures = 0
+    deadline = time.monotonic() + getattr(args, "max_wait_hours", 0) * 3600
+    while True:
         try:
             args.func(args)
             return
         except KeyboardInterrupt:
             sys.exit("\nInterrupted. Re-run the same command to resume.")
         except RateLimitError as exc:
-            sys.exit(f"\nProvider rate limit reached ({exc}). Progress is saved; re-run later.")
-        except (APIConnectionError, InternalServerError) as exc:
-            # Transient network/provider failures: everything is checkpointed, so resume.
-            wait = 30 * attempt
-            print(f"\n{type(exc).__name__}: {exc}. Resuming in {wait}s (attempt {attempt}/10)")
+            # Free tiers cap tokens per day on a rolling window. Everything is checkpointed,
+            # so wait until the provider says capacity is back, then resume.
+            wait = retry_after_seconds(str(exc)) + 30
+            if time.monotonic() + wait > deadline:
+                sys.exit(f"\nRate limit reached ({exc}). Progress is saved; re-run later.")
+            print(f"\nRate limit reached; resuming in {wait / 60:.0f} min.", flush=True)
             time.sleep(wait)
-    sys.exit("Too many transient failures; re-run later to resume.")
+        except (APIConnectionError, InternalServerError) as exc:
+            network_failures += 1
+            if network_failures > 10:
+                sys.exit("Too many transient failures; re-run later to resume.")
+            wait = 30 * network_failures
+            print(f"\n{type(exc).__name__}: {exc}. Resuming in {wait}s", flush=True)
+            time.sleep(wait)
+
+
+def retry_after_seconds(message: str, default: float = 600.0) -> float:
+    """Parse Groq-style "Please try again in 6m5.04s" (also "1h2m3s", "45.5s")."""
+    match = re.search(r"try again in ((?:\d+h)?(?:\d+m)?(?:[\d.]+s)?)", message)
+    if not match or not match.group(1):
+        return default
+    parts = {unit: value for value, unit in re.findall(r"([\d.]+)([hms])", match.group(1))}
+    return (
+        float(parts.get("h", 0)) * 3600 + float(parts.get("m", 0)) * 60 + float(parts.get("s", 0))
+    )
 
 
 if __name__ == "__main__":

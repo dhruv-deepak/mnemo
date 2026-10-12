@@ -57,3 +57,18 @@ def test_questions_skip_adversarial_and_stringify_answers():
 )
 def test_f1(prediction, gold, expected):
     assert f1_score(prediction, gold) == pytest.approx(expected, abs=1e-3)
+
+
+@pytest.mark.parametrize(
+    ("message", "seconds"),
+    [
+        ("Please try again in 6m5.04s. Need more tokens?", 365.04),
+        ("try again in 1h2m3s", 3723.0),
+        ("try again in 45.5s", 45.5),
+        ("no hint here", 600.0),
+    ],
+)
+def test_retry_after_seconds(message, seconds):
+    from benchmarks.locomo import retry_after_seconds
+
+    assert retry_after_seconds(message) == pytest.approx(seconds)
