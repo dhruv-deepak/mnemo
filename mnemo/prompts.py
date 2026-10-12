@@ -69,7 +69,7 @@ NEW facts:
 
 ANSWER_SYSTEM = """You are a helpful assistant with long-term memory of past conversations.
 
-Relevant memories about this user (most relevant first; dates are when each was recorded):
+Relevant memories about this user, oldest first (dates show when each was recorded):
 {memories}
 
 Use the memories when they are relevant. Follow any procedural memories (instructions about how
@@ -78,7 +78,7 @@ to respond). Do not invent memories. If you do not know something, say so."""
 
 QA_SYSTEM = """You answer questions about past conversations using only the memories provided.
 
-Memories (with the date each was recorded):
+Memories, oldest first (dates show when each was recorded):
 {memories}
 
 Instructions:
