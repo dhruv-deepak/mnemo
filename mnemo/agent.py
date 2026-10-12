@@ -42,6 +42,19 @@ class MemoryAgent:
         With ``background_write=True`` the memory update runs after the reply is returned,
         keeping extraction latency off the user's critical path.
         """
+        turn = self.respond(user_id, message, history)
+        if background_write:
+            threading.Thread(
+                target=self._safe_remember, args=(user_id, message, turn.reply), daemon=True
+            ).start()
+        else:
+            turn.write = self.remember(user_id, message, turn.reply)
+        return turn
+
+    def respond(
+        self, user_id: str, message: str, history: list[dict[str, str]] | None = None
+    ) -> ChatTurn:
+        """Read path only: recall memories and generate a reply."""
         started = time.perf_counter()
         memories = self.memory.search(message, user_id, limit=self.memory_limit)
         retrieval_ms = (time.perf_counter() - started) * 1000
@@ -54,25 +67,20 @@ class MemoryAgent:
         ]
         started = time.perf_counter()
         reply = self.memory.llm.complete(messages)
-        generation_ms = (time.perf_counter() - started) * 1000
-
-        exchange = [{"role": "user", "content": message}, {"role": "assistant", "content": reply}]
-        write: AddResult | None = None
-        if background_write:
-            threading.Thread(target=self._safe_add, args=(exchange, user_id), daemon=True).start()
-        else:
-            write = self.memory.add(exchange, user_id)
-
         return ChatTurn(
             reply=reply,
             memories=memories,
-            write=write,
             retrieval_ms=retrieval_ms,
-            generation_ms=generation_ms,
+            generation_ms=(time.perf_counter() - started) * 1000,
         )
 
-    def _safe_add(self, exchange: list[dict[str, str]], user_id: str) -> None:
+    def remember(self, user_id: str, message: str, reply: str) -> AddResult:
+        """Write path: extract and consolidate what this exchange revealed."""
+        exchange = [{"role": "user", "content": message}, {"role": "assistant", "content": reply}]
+        return self.memory.add(exchange, user_id)
+
+    def _safe_remember(self, user_id: str, message: str, reply: str) -> None:
         try:
-            self.memory.add(exchange, user_id)
+            self.remember(user_id, message, reply)
         except Exception:
             log.exception("Background memory write failed")

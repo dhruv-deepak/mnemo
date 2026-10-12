@@ -13,14 +13,16 @@ import uuid
 from pathlib import Path
 
 import streamlit as st
+from dotenv import load_dotenv
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # run without installing
-
 from mnemo import Memory, Settings
 from mnemo.agent import MemoryAgent
 from mnemo.retrieval import HybridRetriever
 from mnemo.store import Filters
 from mnemo.types import EventType, MemoryType
+
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")  # local runs: key from .env
 
 MAX_TURNS_PER_SESSION = 40
 EVENT_STYLE = {
@@ -142,10 +144,18 @@ with chat_tab:
         state.turns += 1
         with st.chat_message("user"):
             st.markdown(prompt)
-        with st.chat_message("assistant"), st.spinner("Thinking..."):
+        with st.chat_message("assistant"):
             plain_history = [{"role": m["role"], "content": m["content"]} for m in state.history]
-            turn = agent.chat(user_id, prompt, plain_history)
-            st.markdown(turn.reply)
+            try:
+                with st.spinner("Recalling and thinking..."):
+                    turn = agent.respond(user_id, prompt, plain_history)
+                st.markdown(turn.reply)  # show the reply before the slower memory write
+                with st.spinner("Updating memory..."):
+                    turn.write = agent.remember(user_id, prompt, turn.reply)
+            except Exception as exc:  # provider outage, rate limit, bad key ...
+                state.turns -= 1
+                st.error(f"The model provider returned an error, please try again. ({exc})")
+                st.stop()
             render_turn_details(turn)
         state.history += [
             {"role": "user", "content": prompt},

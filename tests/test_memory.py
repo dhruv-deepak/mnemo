@@ -201,3 +201,16 @@ def test_extraction_sees_related_memories_as_background(memory, fake_llm):
 def test_first_extraction_has_no_background(memory, fake_llm):
     memory.add("hello", "u1")
     assert "Background memories (already stored):\n(none)" in fake_llm.calls[0][1]
+
+
+def test_agent_background_write(memory, fake_llm):
+    import time
+
+    fake_llm.extraction.append({"facts": [fact("Priya likes chess")]})
+    turn = MemoryAgent(memory).chat("u1", "I like chess", background_write=True)
+    assert turn.write is None
+    for _ in range(100):
+        if memory.count("u1"):
+            break
+        time.sleep(0.01)
+    assert memory.get_all("u1")[0].content == "Priya likes chess"
