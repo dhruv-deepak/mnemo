@@ -25,7 +25,7 @@ from mnemo.store import Filters, SQLiteStore
 from mnemo.types import Relation
 
 RESULTS = Path(__file__).parent / "results"
-PEOPLE = ["Aisha", "Rahul", "Priya", "Kabir", "Meera", "Arjun", "Sara", "Dev", "Nina", "Ishaan"]
+PEOPLE = ["Dhruv", "Rahul", "Priya", "Kabir", "Meera", "Arjun", "Sara", "Dev", "Nina", "Ishaan"]
 PLACES = ["Pune", "Delhi", "Bangalore", "Mumbai", "Goa", "Chennai", "Jaipur", "Kochi"]
 THINGS = ["chess", "guitar", "running", "painting", "Rust", "cooking", "hiking", "jazz"]
 TEMPLATES = [
@@ -39,7 +39,7 @@ TEMPLATES = [
 QUERIES = [
     "Where does Priya live?",
     "What hobbies does Rahul have?",
-    "Who are Aisha's friends?",
+    "Who are Dhruv's friends?",
     "Has anyone been to Goa?",
     "Who is learning Rust?",
     "What does Meera do on weekends?",

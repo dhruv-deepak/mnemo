@@ -19,8 +19,8 @@ and cleaner: the answer model sees 10 short facts instead of 10 noisy turns.
 
 The first version extracted facts from each message in isolation. In live testing, "I moved
 to Bangalore last week" became **"User moved to Bangalore"**, because nothing in the message
-said who "I" was. That fact then ranked third for "Where does Aisha live?" because neither the
-keyword nor the graph signal could connect it to Aisha.
+said who "I" was. That fact then ranked third for "Where does Dhruv live?" because neither the
+keyword nor the graph signal could connect it to Dhruv.
 
 Now the extractor also receives the few stored memories most similar to the conversation, as
 background. That lets it resolve identities and skip facts already known. It costs one local

@@ -32,16 +32,16 @@ from mnemo import Memory
 
 memory = Memory()  # SQLite + local embeddings by default; Groq/OpenAI/Gemini/Ollama for the LLM
 
-memory.add("I'm Aisha, a CS student in Hyderabad. I'm vegetarian.", user_id="aisha")
-memory.add("Big news, I moved to Bangalore last week for an internship!", user_id="aisha")
+memory.add("I'm Dhruv, a CS student in Mumbai. I'm vegetarian.", user_id="dhruv")
+memory.add("Big news, I moved to Bangalore last week for an internship!", user_id="dhruv")
 
-memory.search("Where does Aisha live?", user_id="aisha")[0].memory.content
-# 'Aisha lives in Bangalore (moved from Hyderabad in the week before 12 Oct 2026
+memory.search("Where does Dhruv live?", user_id="dhruv")[0].memory.content
+# 'Dhruv lives in Bangalore (moved from Mumbai in the week before 12 Oct 2026
 #  for an internship)'
 ```
 
 The second message did not create a contradictory memory. mnemo worked out that "I" is
-Aisha, **updated** "Aisha lives in Hyderabad" (keeping the old version in its history),
+Dhruv, **updated** "Dhruv lives in Mumbai" (keeping the old version in its history),
 stored the move as its own event, and anchored "last week" to the conversation date.
 
 ## Features

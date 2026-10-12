@@ -190,11 +190,11 @@ def test_agent_uses_memories_and_learns(memory, fake_llm):
 
 
 def test_extraction_sees_related_memories_as_background(memory, fake_llm):
-    memory.add("Aisha is a CS student", "u1", infer=False)
+    memory.add("Dhruv is a CS student", "u1", infer=False)
     memory.add("The weather API is down", "u2", infer=False)  # other user: must not leak
     memory.add("I moved to Bangalore", "u1")
     prompt = fake_llm.calls[-1][1]
-    assert "- Aisha is a CS student" in prompt
+    assert "- Dhruv is a CS student" in prompt
     assert "weather" not in prompt
 
 

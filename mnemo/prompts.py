@@ -9,7 +9,7 @@ Rules:
   on its own months later, without the conversation. Use people's names, never "he", "she", "I".
 - The speaker with role "user" is the person this memory store belongs to, and background
   memories describe that same person. If the speaker has no name but the background names
-  them (e.g. "Aisha is a student"), write facts about them with that name ("Aisha is
+  them (e.g. "Dhruv is a student"), write facts about them with that name ("Dhruv is
   vegetarian"). Only if no name is known anywhere, write "User". Skip facts about the
   assistant itself.
 - Only extract facts the speakers state or clearly imply about themselves, other people, or
@@ -30,7 +30,7 @@ Rules:
 - entities: the people, places, organisations and things the fact is about.
 - relations: (source, relation, target) triples between those entities, relation in snake_case.
   Targets must be entities (people, places, organisations, things, dates), never true/false
-  or adjectives: write ("Aisha", "diet", "vegetarian"), not ("Aisha", "is_vegetarian", "true").
+  or adjectives: write ("Dhruv", "diet", "vegetarian"), not ("Dhruv", "is_vegetarian", "true").
 
 Return JSON exactly in this shape:
 {"facts": [{"content": "...", "type": "semantic", "importance": 0.7,

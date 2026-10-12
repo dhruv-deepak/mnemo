@@ -32,7 +32,7 @@ EVENT_STYLE = {
     EventType.NONE: ("gray", "KNOWN"),
 }
 SAMPLE_CONVERSATION = [
-    "Hi! I'm Aisha, a final-year CS student in Hyderabad.",
+    "Hi! I'm Dhruv, a final-year CS student in Mumbai.",
     "I'm vegetarian, and I'm training for my first half marathon in December.",
     "Please keep your answers short and use bullet points.",
     "Actually, I just moved to Bangalore for an internship at a fintech startup.",
@@ -170,7 +170,7 @@ with search_tab:
         "Hybrid retrieval fuses vector, keyword and knowledge-graph rankings with Reciprocal "
         "Rank Fusion, then adjusts for recency and importance. Toggle signals to compare."
     )
-    query = st.text_input("Query", placeholder="Where does Aisha live?")
+    query = st.text_input("Query", placeholder="Where does Dhruv live?")
     c1, c2, c3 = st.columns(3)
     use_keyword = c1.toggle("Keyword (BM25)", value=True)
     use_graph = c2.toggle("Knowledge graph", value=True)

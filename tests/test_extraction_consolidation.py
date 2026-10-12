@@ -141,15 +141,15 @@ def test_facts_only_in_rejected_or_delete_ops_are_still_added():
 def test_events_that_update_states_are_also_recorded():
     from mnemo.consolidation import Operation, keep_events
 
-    state = MemoryItem(user_id="u", content="Aisha lives in Delhi", type=MemoryType.SEMANTIC)
-    event = MemoryItem(user_id="u", content="Aisha ran a race on 1 May", type=MemoryType.EPISODIC)
-    move = ExtractedFact(content="Aisha moved to Pune last week for a job", type="episodic")
-    fix = ExtractedFact(content="Aisha's race was on 2 May", type="episodic")
+    state = MemoryItem(user_id="u", content="Dhruv lives in Delhi", type=MemoryType.SEMANTIC)
+    event = MemoryItem(user_id="u", content="Dhruv ran a race on 1 May", type=MemoryType.EPISODIC)
+    move = ExtractedFact(content="Dhruv moved to Pune last week for a job", type="episodic")
+    fix = ExtractedFact(content="Dhruv's race was on 2 May", type="episodic")
     ops = keep_events(
         [
-            Operation(EventType.UPDATE, fact=move, memory_id=state.id, text="Aisha lives in Pune"),
+            Operation(EventType.UPDATE, fact=move, memory_id=state.id, text="Dhruv lives in Pune"),
             Operation(
-                EventType.UPDATE, fact=fix, memory_id=event.id, text="Aisha ran a race on 2 May"
+                EventType.UPDATE, fact=fix, memory_id=event.id, text="Dhruv ran a race on 2 May"
             ),
         ],
         {state.id: state, event.id: event},
@@ -162,11 +162,11 @@ def test_events_that_update_states_are_also_recorded():
 def test_lossy_merges_also_store_the_fact():
     from mnemo.consolidation import Operation, dropped_terms, keep_events
 
-    state = MemoryItem(user_id="u", content="Aisha lives in Hyderabad")
-    fact = ExtractedFact(content="Aisha moved to Bangalore for an internship at Razorpay")
-    assert dropped_terms(fact.content, "Aisha moved to Bangalore, interning at Razorpay") == 0
+    state = MemoryItem(user_id="u", content="Dhruv lives in Mumbai")
+    fact = ExtractedFact(content="Dhruv moved to Bangalore for an internship at Razorpay")
+    assert dropped_terms(fact.content, "Dhruv moved to Bangalore, interning at Razorpay") == 0
     lossy = Operation(
-        EventType.UPDATE, fact=fact, memory_id=state.id, text="Aisha lives in Bangalore"
+        EventType.UPDATE, fact=fact, memory_id=state.id, text="Dhruv lives in Bangalore"
     )
     ops = keep_events([lossy], {state.id: state})
     assert [(o.op, o.reason) for o in ops] == [
@@ -177,6 +177,6 @@ def test_lossy_merges_also_store_the_fact():
         EventType.UPDATE,
         fact=fact,
         memory_id=state.id,
-        text="Aisha moved from Hyderabad to Bangalore for an internship at Razorpay",
+        text="Dhruv moved from Mumbai to Bangalore for an internship at Razorpay",
     )
     assert len(keep_events([faithful], {state.id: state})) == 1
