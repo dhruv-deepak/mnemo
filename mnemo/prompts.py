@@ -29,6 +29,8 @@ Rules:
   (0.8-1.0); hobbies and plans medium (0.4-0.7); passing details low (0.1-0.3).
 - entities: the people, places, organisations and things the fact is about.
 - relations: (source, relation, target) triples between those entities, relation in snake_case.
+  Targets must be entities (people, places, organisations, things, dates), never true/false
+  or adjectives: write ("Aisha", "diet", "vegetarian"), not ("Aisha", "is_vegetarian", "true").
 
 Return JSON exactly in this shape:
 {"facts": [{"content": "...", "type": "semantic", "importance": 0.7,
