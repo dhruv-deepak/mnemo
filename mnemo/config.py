@@ -15,7 +15,7 @@ PROVIDER_PRESETS: dict[str, dict[str, str]] = {
     "groq": {
         "base_url": "https://api.groq.com/openai/v1",
         "key_env": "GROQ_API_KEY",
-        "model": "llama-3.3-70b-versatile",
+        "model": "openai/gpt-oss-120b",
     },
     "openai": {
         "base_url": "https://api.openai.com/v1",
@@ -46,6 +46,9 @@ class Settings(BaseSettings):
     llm_base_url: str | None = None
     llm_api_key: str | None = None
     llm_temperature: float = 0.0
+    # Reasoning models (gpt-oss, qwen3) think before answering. None = a fast default per
+    # model family; "" = don't send the parameter (for providers that reject it).
+    llm_reasoning_effort: str | None = None
     llm_max_retries: int = 6
     llm_timeout_s: float = 60.0
 
@@ -59,6 +62,7 @@ class Settings(BaseSettings):
     postgres_url: str | None = None
 
     # Write path
+    extraction_background: int = 6  # related memories shown to the extractor; 0 disables
     consolidation_candidates: int = Field(
         5, description="Similar memories shown to the LLM per new fact"
     )
@@ -94,6 +98,15 @@ class Settings(BaseSettings):
         if not model:
             raise ValueError("MNEMO_LLM_MODEL is required when MNEMO_LLM_PROVIDER=custom")
         return base_url, api_key, model
+
+    def reasoning_effort(self, model: str) -> str | None:
+        if self.llm_reasoning_effort is not None:
+            return self.llm_reasoning_effort or None
+        if "gpt-oss" in model:
+            return "low"
+        if "qwen3" in model:
+            return "none"
+        return None
 
     @property
     def api_key_set(self) -> set[str]:

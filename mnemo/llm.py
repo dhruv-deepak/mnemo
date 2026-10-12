@@ -68,6 +68,8 @@ class OpenAICompatLLM:
         base_url, api_key, model = settings.resolved_llm()
         self.model = model
         self.temperature = settings.llm_temperature
+        effort = settings.reasoning_effort(model)
+        self._extra: dict[str, Any] = {"reasoning_effort": effort} if effort else {}
         self._client = _make_client(base_url, api_key, settings)
         self._lock = threading.Lock()
         self.usage = Usage()
@@ -86,6 +88,7 @@ class OpenAICompatLLM:
             messages=messages,
             temperature=self.temperature,
             max_tokens=max_tokens,
+            **self._extra,
         )
         self._record(response)
         return response.choices[0].message.content or ""
@@ -100,6 +103,7 @@ class OpenAICompatLLM:
                 temperature=self.temperature,
                 max_tokens=max_tokens,
                 response_format={"type": "json_object"},
+                **self._extra,
             )
             self._record(response)
             text = response.choices[0].message.content or ""
