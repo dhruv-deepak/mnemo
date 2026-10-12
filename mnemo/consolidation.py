@@ -15,7 +15,8 @@ from typing import Any
 from mnemo.extraction import ExtractedFact
 from mnemo.llm import LLM
 from mnemo.prompts import CONSOLIDATION_SYSTEM, CONSOLIDATION_USER
-from mnemo.types import EventType, MemoryItem
+from mnemo.store.base import keyword_terms
+from mnemo.types import EventType, MemoryItem, MemoryType
 
 log = logging.getLogger(__name__)
 
@@ -124,4 +125,52 @@ def plan_operations(
         return [Operation(EventType.ADD, fact=f) for f in facts]
     user, aliases = build_prompt(facts, existing)
     payload = llm.complete_json(CONSOLIDATION_SYSTEM, user)
-    return parse_operations(payload, facts, aliases)
+    operations = parse_operations(payload, facts, aliases)
+    return keep_events(operations, {m.id: m for m in existing})
+
+
+def dropped_terms(fact: str, merged: str) -> float:
+    """Fraction of the fact's content words missing from the merged text (prefix match, so
+    "moved" still matches "move")."""
+    terms = keyword_terms(fact)
+    if not terms:
+        return 0.0
+    merged_lower = merged.lower()
+    missing = [t for t in terms if t[:5] not in merged_lower]
+    return len(missing) / len(terms)
+
+
+def keep_events(
+    operations: list[Operation], existing: dict[str, MemoryItem], max_dropped: float = 0.25
+) -> list[Operation]:
+    """Make UPDATEs lossless by also storing the new fact verbatim when needed.
+
+    Measured: merged UPDATE texts regularly drop details of the new fact (a date, a reason,
+    "for an internship"). Two deterministic rules catch this:
+
+    * Events are append-only: an episodic fact that updates a lasting fact ("moved to Pune"
+      -> "lives in Delhi") is also recorded as its own memory. Updating an episodic memory is
+      a correction of that event, so it gets no copy.
+    * Information check: if the merged text is missing more than ``max_dropped`` of the
+      fact's content words, the merge was lossy and the fact is stored too.
+    """
+    added = {id(op.fact) for op in operations if op.op is EventType.ADD and op.fact}
+    extra: list[Operation] = []
+    for op in operations:
+        if op.op is not EventType.UPDATE or op.fact is None or id(op.fact) in added:
+            continue
+        target = existing.get(op.memory_id or "")
+        event_updates_state = (
+            op.fact.type is MemoryType.EPISODIC
+            and target is not None
+            and target.type is not MemoryType.EPISODIC
+        )
+        if event_updates_state:
+            reason = "event record"
+        elif dropped_terms(op.fact.content, op.text or "") > max_dropped:
+            reason = "merge dropped details"
+        else:
+            continue
+        added.add(id(op.fact))
+        extra.append(Operation(EventType.ADD, fact=op.fact, reason=reason))
+    return operations + extra

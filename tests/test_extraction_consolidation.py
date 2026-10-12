@@ -136,3 +136,47 @@ def test_facts_only_in_rejected_or_delete_ops_are_still_added():
         (EventType.ADD, "only deleted"),
         (EventType.ADD, "unverified none"),
     ]
+
+
+def test_events_that_update_states_are_also_recorded():
+    from mnemo.consolidation import Operation, keep_events
+
+    state = MemoryItem(user_id="u", content="Aisha lives in Delhi", type=MemoryType.SEMANTIC)
+    event = MemoryItem(user_id="u", content="Aisha ran a race on 1 May", type=MemoryType.EPISODIC)
+    move = ExtractedFact(content="Aisha moved to Pune last week for a job", type="episodic")
+    fix = ExtractedFact(content="Aisha's race was on 2 May", type="episodic")
+    ops = keep_events(
+        [
+            Operation(EventType.UPDATE, fact=move, memory_id=state.id, text="Aisha lives in Pune"),
+            Operation(
+                EventType.UPDATE, fact=fix, memory_id=event.id, text="Aisha ran a race on 2 May"
+            ),
+        ],
+        {state.id: state, event.id: event},
+    )
+    # The move updates the state AND is kept verbatim; correcting an event adds no copy.
+    assert [(o.op, o.fact.content) for o in ops[2:]] == [(EventType.ADD, move.content)]
+    assert len(ops) == 3
+
+
+def test_lossy_merges_also_store_the_fact():
+    from mnemo.consolidation import Operation, dropped_terms, keep_events
+
+    state = MemoryItem(user_id="u", content="Aisha lives in Hyderabad")
+    fact = ExtractedFact(content="Aisha moved to Bangalore for an internship at Razorpay")
+    assert dropped_terms(fact.content, "Aisha moved to Bangalore, interning at Razorpay") == 0
+    lossy = Operation(
+        EventType.UPDATE, fact=fact, memory_id=state.id, text="Aisha lives in Bangalore"
+    )
+    ops = keep_events([lossy], {state.id: state})
+    assert [(o.op, o.reason) for o in ops] == [
+        (EventType.UPDATE, None),
+        (EventType.ADD, "merge dropped details"),
+    ]
+    faithful = Operation(
+        EventType.UPDATE,
+        fact=fact,
+        memory_id=state.id,
+        text="Aisha moved from Hyderabad to Bangalore for an internship at Razorpay",
+    )
+    assert len(keep_events([faithful], {state.id: state})) == 1
