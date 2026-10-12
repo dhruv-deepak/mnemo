@@ -162,11 +162,17 @@ class MnemoSystem:
         for index, (when, messages) in enumerate(all_sessions):
             if index < progress["sessions_done"]:
                 continue
-            started = time.perf_counter()
-            for start in range(0, len(messages), chunk_turns):
+            # Checkpoint after every chunk. All LLM calls in add() happen before any write,
+            # so a failed chunk leaves no partial state and is simply retried.
+            starts = list(range(0, len(messages), chunk_turns))
+            for chunk, start in enumerate(starts):
+                if chunk < progress.get("chunks_done", 0):
+                    continue
+                started = time.perf_counter()
                 result = self.memory.add(
                     messages[start : start + chunk_turns], self.sample_id, when=when
                 )
+                progress["seconds"] += time.perf_counter() - started
                 progress["prompt_tokens"] += result.usage.prompt_tokens
                 progress["completion_tokens"] += result.usage.completion_tokens
                 progress["llm_calls"] += result.usage.llm_calls
@@ -174,8 +180,10 @@ class MnemoSystem:
                     progress["events"][event.event.value] = (
                         progress["events"].get(event.event.value, 0) + 1
                     )
-            progress["seconds"] += time.perf_counter() - started
+                progress["chunks_done"] = chunk + 1
+                self.progress_path.write_text(json.dumps(progress, indent=1))
             progress["sessions_done"] = index + 1
+            progress["chunks_done"] = 0
             self.progress_path.write_text(json.dumps(progress, indent=1))
             print(
                 f"  [{self.sample_id}] session {index + 1}/{len(all_sessions)} ingested "
@@ -474,14 +482,22 @@ def main(argv: list[str] | None = None) -> None:
     report.set_defaults(func=cmd_report)
 
     args = parser.parse_args(argv)
-    from openai import RateLimitError
+    from openai import APIConnectionError, InternalServerError, RateLimitError
 
-    try:
-        args.func(args)
-    except KeyboardInterrupt:
-        sys.exit("\nInterrupted. Re-run the same command to resume.")
-    except RateLimitError as exc:
-        sys.exit(f"\nProvider rate limit reached ({exc}). Progress is saved; re-run later.")
+    for attempt in range(1, 11):
+        try:
+            args.func(args)
+            return
+        except KeyboardInterrupt:
+            sys.exit("\nInterrupted. Re-run the same command to resume.")
+        except RateLimitError as exc:
+            sys.exit(f"\nProvider rate limit reached ({exc}). Progress is saved; re-run later.")
+        except (APIConnectionError, InternalServerError) as exc:
+            # Transient network/provider failures: everything is checkpointed, so resume.
+            wait = 30 * attempt
+            print(f"\n{type(exc).__name__}: {exc}. Resuming in {wait}s (attempt {attempt}/10)")
+            time.sleep(wait)
+    sys.exit("Too many transient failures; re-run later to resume.")
 
 
 if __name__ == "__main__":
