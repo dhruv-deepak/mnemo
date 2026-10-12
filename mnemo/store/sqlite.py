@@ -1,8 +1,9 @@
 """Zero-setup backend: SQLite for rows, FTS5 (BM25) for keywords, NumPy for vectors.
 
-Vector search is an exact scan over one user's memories. Personal memory stores hold
-hundreds to a few thousand rows per user, where an exact scan takes a few milliseconds and
-beats maintaining an ANN index. Use the Postgres backend (HNSW) for large multi-tenant stores.
+Vector search is an exact scan over one user's memories, served from an in-memory matrix per
+user that is invalidated on every write. Personal memory stores hold hundreds to tens of
+thousands of rows per user, where an exact scan takes a few milliseconds and beats maintaining
+an ANN index. Use the Postgres backend (HNSW) for large multi-tenant stores.
 """
 
 from __future__ import annotations
@@ -10,8 +11,10 @@ from __future__ import annotations
 import json
 import sqlite3
 import threading
+from collections import OrderedDict
 from collections.abc import Iterator
 from contextlib import contextmanager
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -117,13 +120,25 @@ def _where(filters: Filters, alias: str = "") -> tuple[str, list[Any]]:
     return " AND ".join(clauses), params
 
 
+@dataclass(frozen=True)
+class _UserVectors:
+    ids: list[str]
+    agents: np.ndarray  # agent_id per row, for filtering
+    types: np.ndarray  # memory type per row, for filtering
+    matrix: np.ndarray  # (rows, dim) float32, L2-normalised
+
+
 class SQLiteStore(MemoryStore):
-    def __init__(self, path: str | Path = "mnemo.db") -> None:
+    def __init__(self, path: str | Path = "mnemo.db", cached_users: int = 64) -> None:
         if str(path) != ":memory:":
             Path(path).parent.mkdir(parents=True, exist_ok=True)
         self._conn = sqlite3.connect(str(path), check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         self._lock = threading.RLock()
+        # LRU cache of each active user's embedding matrix. Re-reading every embedding blob
+        # from SQLite dominated search latency (40 ms at 10k memories) before this existed.
+        self._vectors: OrderedDict[str, _UserVectors] = OrderedDict()
+        self._cached_users = cached_users
         with self._tx() as c:
             c.execute("PRAGMA journal_mode=WAL")
             c.executescript(SCHEMA)
@@ -158,6 +173,7 @@ class SQLiteStore(MemoryStore):
                 "INSERT INTO memories_fts (memory_id, content) VALUES (?, ?)",
                 (item.id, item.content),
             )
+            self._vectors.pop(item.user_id, None)
 
     def update(self, item: MemoryItem, embedding: np.ndarray | None = None) -> None:
         with self._tx() as c:
@@ -184,9 +200,13 @@ class SQLiteStore(MemoryStore):
                 "INSERT INTO memories_fts (memory_id, content) VALUES (?, ?)",
                 (item.id, item.content),
             )
+            self._vectors.pop(item.user_id, None)  # type or embedding may change
 
     def delete(self, memory_id: str) -> None:
         with self._tx() as c:
+            row = c.execute("SELECT user_id FROM memories WHERE id = ?", (memory_id,)).fetchone()
+            if row:
+                self._vectors.pop(row["user_id"], None)
             c.execute("DELETE FROM memories WHERE id = ?", (memory_id,))
             c.execute("DELETE FROM memories_fts WHERE memory_id = ?", (memory_id,))
             c.execute("DELETE FROM memory_entities WHERE memory_id = ?", (memory_id,))
@@ -233,21 +253,48 @@ class SQLiteStore(MemoryStore):
     def vector_search(
         self, filters: Filters, embedding: np.ndarray, k: int
     ) -> list[tuple[str, float]]:
-        where, params = _where(filters)
         with self._lock:
-            rows = self._conn.execute(
-                f"SELECT id, embedding FROM memories WHERE {where}", params
-            ).fetchall()
-        if not rows:
+            cached = self._user_vectors(filters.user_id)
+        if not cached.ids:
             return []
-        ids = [r["id"] for r in rows]
-        matrix = np.frombuffer(b"".join(r["embedding"] for r in rows), dtype=np.float32)
-        matrix = matrix.reshape(len(rows), -1)
+        mask = np.ones(len(cached.ids), dtype=bool)
+        if filters.agent_id is not None:
+            mask &= cached.agents == filters.agent_id
+        if filters.types:
+            mask &= np.isin(cached.types, filters.types)
+        rows = np.flatnonzero(mask)
+        if rows.size == 0:
+            return []
+        matrix = cached.matrix if rows.size == len(cached.ids) else cached.matrix[rows]
         scores = matrix @ np.asarray(embedding, dtype=np.float32)
-        k = min(k, len(ids))
+        k = min(k, rows.size)
         top = np.argpartition(-scores, k - 1)[:k]
         top = top[np.argsort(-scores[top])]
-        return [(ids[i], float(scores[i])) for i in top]
+        return [(cached.ids[rows[i]], float(scores[i])) for i in top]
+
+    def _user_vectors(self, user_id: str) -> _UserVectors:
+        cached = self._vectors.get(user_id)
+        if cached is not None:
+            self._vectors.move_to_end(user_id)
+            return cached
+        rows = self._conn.execute(
+            "SELECT id, agent_id, type, embedding FROM memories WHERE user_id = ?", (user_id,)
+        ).fetchall()
+        if rows:
+            matrix = np.frombuffer(b"".join(r["embedding"] for r in rows), dtype=np.float32)
+            matrix = matrix.reshape(len(rows), -1)
+        else:
+            matrix = np.zeros((0, 0), dtype=np.float32)
+        cached = _UserVectors(
+            ids=[r["id"] for r in rows],
+            agents=np.array([r["agent_id"] for r in rows], dtype=object),
+            types=np.array([r["type"] for r in rows], dtype=object),
+            matrix=matrix,
+        )
+        self._vectors[user_id] = cached
+        if len(self._vectors) > self._cached_users:
+            self._vectors.popitem(last=False)
+        return cached
 
     def keyword_search(self, filters: Filters, query: str, k: int) -> list[tuple[str, float]]:
         terms = keyword_terms(query)
@@ -432,6 +479,7 @@ class SQLiteStore(MemoryStore):
             c.execute("DELETE FROM relations WHERE user_id = ?", (user_id,))
             c.execute("DELETE FROM entities WHERE user_id = ?", (user_id,))
             c.execute("DELETE FROM events WHERE user_id = ?", (user_id,))
+            self._vectors.pop(user_id, None)
         return len(ids)
 
     def close(self) -> None:

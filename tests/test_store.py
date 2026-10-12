@@ -125,3 +125,22 @@ def test_touch_updates_access_stats(store, embedder, user_id):
 def test_helpers():
     assert normalise_entity("  Dr. Priya-Sharma ") == "dr priya sharma"
     assert keyword_terms("What is Priya's favourite food?") == ["priya", "favourite", "food"]
+
+
+def test_vector_cache_is_invalidated_by_writes(store, embedder, user_id):
+    a = _add(store, embedder, user_id, "likes green tea")
+    query = embedder.embed_query("green tea")
+    assert [i for i, _ in store.vector_search(Filters(user_id), query, 5)] == [a.id]  # warm cache
+
+    b = _add(store, embedder, user_id, "likes green tea a lot")
+    assert {i for i, _ in store.vector_search(Filters(user_id), query, 5)} == {a.id, b.id}
+
+    b.type = MemoryType.PROCEDURAL
+    store.update(b)
+    hits = store.vector_search(Filters(user_id, types=["procedural"]), query, 5)
+    assert [i for i, _ in hits] == [b.id]
+
+    store.delete(a.id)
+    assert [i for i, _ in store.vector_search(Filters(user_id), query, 5)] == [b.id]
+    store.delete_user(user_id)
+    assert store.vector_search(Filters(user_id), query, 5) == []
