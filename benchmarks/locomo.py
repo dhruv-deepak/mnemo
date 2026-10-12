@@ -1,7 +1,7 @@
 """LoCoMo long-term memory benchmark.
 
-LoCoMo (Maharana et al., ACL 2024) has 10 multi-session conversations (~600 turns, ~16k
-tokens each) and ~1.5k questions that need facts spread across sessions. We evaluate:
+LoCoMo (Maharana et al., ACL 2024) has 10 multi-session conversations (~590 turns, ~21k
+tokens each) and 1,540 questions that need facts spread across sessions. We evaluate:
 
     mnemo           full hybrid retrieval over extracted memories
     mnemo-vector    ablation: vector signal only
