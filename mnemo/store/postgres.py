@@ -254,10 +254,13 @@ class PostgresStore(MemoryStore):
         ).fetchone()
         return int(row[0])
 
-    def link_entities(self, item: MemoryItem, relations: list[Relation]) -> None:
+    def link_entities(
+        self, item: MemoryItem, relations: list[Relation], replace: bool = True
+    ) -> None:
         with self._pool.connection() as conn:
-            conn.execute("DELETE FROM memory_entities WHERE memory_id = %s", (item.id,))
-            conn.execute("DELETE FROM relations WHERE memory_id = %s", (item.id,))
+            if replace:
+                conn.execute("DELETE FROM memory_entities WHERE memory_id = %s", (item.id,))
+                conn.execute("DELETE FROM relations WHERE memory_id = %s", (item.id,))
             names = list(item.entities)
             for r in relations:
                 names.extend([r.source, r.target])

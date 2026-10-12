@@ -289,10 +289,13 @@ class SQLiteStore(MemoryStore):
         ).fetchone()
         return int(row["id"])
 
-    def link_entities(self, item: MemoryItem, relations: list[Relation]) -> None:
+    def link_entities(
+        self, item: MemoryItem, relations: list[Relation], replace: bool = True
+    ) -> None:
         with self._tx() as c:
-            c.execute("DELETE FROM memory_entities WHERE memory_id = ?", (item.id,))
-            c.execute("DELETE FROM relations WHERE memory_id = ?", (item.id,))
+            if replace:
+                c.execute("DELETE FROM memory_entities WHERE memory_id = ?", (item.id,))
+                c.execute("DELETE FROM relations WHERE memory_id = ?", (item.id,))
             names = list(item.entities)
             for r in relations:
                 names.extend([r.source, r.target])

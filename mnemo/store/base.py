@@ -79,7 +79,10 @@ class MemoryStore(ABC):
 
     # --- graph ---------------------------------------------------------------------------
     @abstractmethod
-    def link_entities(self, item: MemoryItem, relations: list[Relation]) -> None: ...
+    def link_entities(
+        self, item: MemoryItem, relations: list[Relation], replace: bool = True
+    ) -> None:
+        """Link a memory to its entities. ``replace=False`` keeps existing links (merges)."""
 
     @abstractmethod
     def entity_names(self, user_id: str) -> dict[str, str]:

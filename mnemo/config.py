@@ -68,6 +68,8 @@ class Settings(BaseSettings):
     recency_half_life_days: float = 30.0
     recency_weight: float = 0.1
     importance_weight: float = 0.1
+    use_keyword: bool = True  # toggles exist so each signal can be ablated in benchmarks
+    use_graph: bool = True
     graph_hops: int = 1
     rerank: bool = False
     rerank_model: str = "Xenova/ms-marco-MiniLM-L-6-v2"
