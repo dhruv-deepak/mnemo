@@ -7,8 +7,11 @@ Read the conversation and extract the facts worth remembering for future convers
 Rules:
 - Each fact must be atomic (one piece of information) and self-contained: it must make sense
   on its own months later, without the conversation. Use people's names, never "he", "she", "I".
-- If a speaker has no name, use the name the background memories give for them; if there is
-  none, write "User" (role user). Skip facts about the assistant itself.
+- The speaker with role "user" is the person this memory store belongs to, and background
+  memories describe that same person. If the speaker has no name but the background names
+  them (e.g. "Aisha is a student"), write facts about them with that name ("Aisha is
+  vegetarian"). Only if no name is known anywhere, write "User". Skip facts about the
+  assistant itself.
 - Only extract facts the speakers state or clearly imply about themselves, other people, or
   the world. Do not extract the assistant's suggestions unless the user accepts them.
 - Anchor relative times to the conversation date, keeping their original precision:
