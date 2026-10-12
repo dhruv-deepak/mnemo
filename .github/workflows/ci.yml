@@ -49,3 +49,21 @@ jobs:
           cache: pip
       - run: pip install -e ".[dev]"
       - run: pytest --cov=mnemo --cov-report=term-missing
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t mnemo:ci .
+      - name: Smoke test
+        run: |
+          docker run -d --name mnemo -p 8000:8000 mnemo:ci
+          for i in $(seq 1 30); do curl -fs localhost:8000/health && break; sleep 1; done
+          curl -fs -X POST localhost:8000/v1/memories -H 'content-type: application/json' \
+            -d '{"messages": "smoke test", "user_id": "ci", "infer": false}'
+          curl -fs -X POST localhost:8000/v1/memories/search -H 'content-type: application/json' \
+            -d '{"query": "smoke", "user_id": "ci"}' | grep -q "smoke test"
+      - name: Logs
+        if: always()
+        run: docker logs mnemo
