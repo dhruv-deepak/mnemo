@@ -8,6 +8,10 @@ and retrieves the right memories with hybrid vector + keyword + knowledge-graph 
 [![CI](https://github.com/dhruv-deepak/mnemo/actions/workflows/ci.yml/badge.svg)](https://github.com/dhruv-deepak/mnemo/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
+[![Live demo](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://8rnvrygmjq9t8xdgnv5vhr.streamlit.app/)
+
+**[Try the live demo →](https://8rnvrygmjq9t8xdgnv5vhr.streamlit.app/)** Chat with an assistant
+and watch its memory being written, updated and recalled in real time.
 
 [How it works](#how-it-works) · [Results](#results) · [Quickstart](#quickstart) ·
 [REST API](#rest-api) · [MCP](#use-it-from-claude-desktop-cursor-or-any-mcp-client) ·
@@ -180,7 +184,8 @@ cp .env.example .env                               # add GROQ_API_KEY (free at c
 mnemo chat --user me -v       # -v shows every ADD / UPDATE / DELETE as it happens
 ```
 
-**Run the web demo** (chat, memory inspector, search playground, knowledge graph):
+**Run the web demo** (chat, memory inspector, search playground, knowledge graph), or try the
+[hosted version](https://8rnvrygmjq9t8xdgnv5vhr.streamlit.app/):
 
 ```bash
 streamlit run demo/app.py
