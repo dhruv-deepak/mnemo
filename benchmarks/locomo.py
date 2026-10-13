@@ -490,6 +490,8 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
     from openai import APIConnectionError, InternalServerError, RateLimitError
 
+    if args.command == "run":
+        prevent_idle_sleep()
     network_failures = 0
     deadline = time.monotonic() + getattr(args, "max_wait_hours", 0) * 3600
     while True:
@@ -507,12 +509,27 @@ def main(argv: list[str] | None = None) -> None:
             print(f"\nRate limit reached; resuming in {wait / 60:.0f} min.", flush=True)
             time.sleep(wait)
         except (APIConnectionError, InternalServerError) as exc:
+            # Network drops (Wi-Fi, sleep) can last a while; back off up to 5 minutes and keep
+            # trying until the same deadline used for rate limits.
             network_failures += 1
-            if network_failures > 10:
-                sys.exit("Too many transient failures; re-run later to resume.")
-            wait = 30 * network_failures
+            wait = min(30 * network_failures, 300)
+            if time.monotonic() + wait > deadline:
+                sys.exit(f"\n{type(exc).__name__}: {exc}. Progress is saved; re-run later.")
             print(f"\n{type(exc).__name__}: {exc}. Resuming in {wait}s", flush=True)
             time.sleep(wait)
+
+
+def prevent_idle_sleep() -> None:
+    """Ask the OS not to idle-sleep while this process runs (released when it exits).
+
+    Long free-tier runs spend hours waiting out rate limits; an idle-sleeping laptop drops the
+    network and stalls the run. Windows only; elsewhere use e.g. `caffeinate` or `systemd-inhibit`.
+    """
+    if sys.platform == "win32":
+        import ctypes
+
+        es_continuous, es_system_required = 0x80000000, 0x00000001
+        ctypes.windll.kernel32.SetThreadExecutionState(es_continuous | es_system_required)
 
 
 def retry_after_seconds(message: str, default: float = 600.0) -> float:
