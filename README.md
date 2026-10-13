@@ -33,16 +33,23 @@ from mnemo import Memory
 memory = Memory()  # SQLite + local embeddings by default; Groq/OpenAI/Gemini/Ollama for the LLM
 
 memory.add("I'm Dhruv, a CS student in Mumbai. I'm vegetarian.", user_id="dhruv")
-memory.add("Big news, I moved to Bangalore last week for an internship!", user_id="dhruv")
+
+result = memory.add("Big news, I moved to Bangalore last week for an internship!", user_id="dhruv")
+for e in result.events:
+    print(e.event.value, e.new_content, f"({e.reason})" if e.reason else "")
+# UPDATE Dhruv lives in Bangalore (New fact updates location, replacing outdated Mumbai info)
+# ADD    Dhruv started an internship in Bangalore in the week before 13 October 2026
+# ADD    Dhruv lives in Bangalore as of the week before 13 October 2026 (merge dropped details)
 
 memory.search("Where does Dhruv live?", user_id="dhruv")[0].memory.content
-# 'Dhruv lives in Bangalore (moved from Mumbai in the week before 12 Oct 2026
-#  for an internship)'
+# 'Dhruv lives in Bangalore'
 ```
 
 The second message did not create a contradictory memory. mnemo worked out that "I" is
-Dhruv, **updated** "Dhruv lives in Mumbai" (keeping the old version in its history),
-stored the move as its own event, and anchored "last week" to the conversation date.
+Dhruv, **updated** "Dhruv lives in Mumbai" (the old version stays in the memory's history),
+stored the internship as its own event, and anchored "last week" to the conversation date.
+The model's merged text had dropped the date, so a deterministic check also kept the dated
+fact (`merge dropped details`).
 
 ## Features
 
