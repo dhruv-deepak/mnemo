@@ -141,8 +141,36 @@ multi-session conversations: on average 588 turns over 19–32 sessions (about 2
 per conversation, with questions that need facts spread across sessions. Every system uses
 the same answer model, prompt and LLM judge.
 
-<!-- LOCOMO_RESULTS -->
-_Benchmark run in progress; results will be published here._
+Results on conversation `conv-26` (152 questions, 19 sessions, ~16.8k tokens). Answers are
+from `gpt-oss-20b` and graded by a different model (`qwen3`) as judge; memories were ingested
+with `gpt-oss-120b`; top-k = 10.
+
+| System | Overall | Multi-hop (32) | Temporal (37) | Open-domain (13) | Single-hop (70) | Context tokens / question |
+|---|---|---|---|---|---|---|
+| **mnemo** | 50.7% | **34.4%** | **64.9%** | **76.9%** | 45.7% | **207** |
+| RAG over raw turns | **57.9%** | 25.0% | 62.2% | 61.5% | **70.0%** | 445 |
+| Full conversation in prompt | — | — | — | — | — | 16,783 |
+
+**What this shows:**
+
+- **mnemo wins on questions that need information combined from several places.**
+  It leads multi-hop by 9 points and open-domain by 15, because consolidation merges facts that
+  were spread across many turns. ("What is Caroline's identity?": mnemo answered *trans woman*;
+  RAG answered *artist*.)
+- **It sends 2.1× less context than RAG and 81× less than the full conversation.**
+- **RAG wins single-hop questions that ask for exact wording,** and they're the largest
+  category. ("What does Caroline's necklace symbolise?" Gold: *love, faith, and strength*. RAG
+  had the raw sentence; mnemo's extracted fact had paraphrased it as *family love and
+  heritage*.) Extraction is lossy for verbatim details.
+- **The overall gap is not statistically significant.** In a paired comparison, mnemo was
+  right where RAG was wrong 23 times, and the reverse 34 times (McNemar p ≈ 0.19). This is one
+  of LoCoMo's 10 conversations, run on free-tier models, so each number has about ±8 points of
+  noise. The per-category pattern, and the failure cases behind it, are the meaningful result.
+
+**Next step:** link each fact to the source turns it was extracted from, and return facts
+together with their original sentences. That keeps the synthesis advantage while restoring
+exact wording for detail questions. Full results table:
+[`benchmarks/results/locomo-conv0.md`](benchmarks/results/locomo-conv0.md).
 
 ### Search latency
 
